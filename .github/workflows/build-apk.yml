@@ -1,3 +1,4 @@
+
 name: StereoGuide APK Olustur
 
 on:
@@ -17,6 +18,15 @@ jobs:
       - name: Proje ZIP dosyasini ac
         run: |
           unzip -o StereoGuide-Android-project-v0.4.0-hybrid-fast.zip
+
+      - name: Java ve Kotlin hedeflerini 17 yap
+        run: |
+          sed -i '/    kotlinOptions {/i\
+              compileOptions {\
+                  sourceCompatibility = JavaVersion.VERSION_17\
+                  targetCompatibility = JavaVersion.VERSION_17\
+              }\
+          ' StereoGuide/app/build.gradle.kts
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
