@@ -1,4 +1,3 @@
-
 name: StereoGuide APK Olustur
 
 on:
@@ -17,7 +16,7 @@ jobs:
 
       - name: Proje ZIP dosyasini ac
         run: |
-          unzip -o StereoGuide-Android-project-v0.4.0-hybrid-fast.zip
+          unzip -o StereoGuide-Android-project-v0.5.0-auto-align-fast.zip
 
       - name: Java ve Kotlin hedeflerini 17 yap
         run: |
@@ -46,6 +45,6 @@ jobs:
       - name: APK dosyasini yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: StereoGuide-v0.4.0-APK
+          name: StereoGuide-v0.5.0-APK
           path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
