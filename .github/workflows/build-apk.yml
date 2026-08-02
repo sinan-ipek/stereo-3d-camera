@@ -14,8 +14,8 @@ jobs:
       - name: Depoyu indir
         uses: actions/checkout@v4
 
-      - name: Düzeltilmiş v0.6.0 proje paketini aç
-        run: unzip -o StereoGuide-Android-project-v0.6.0-fixed.zip
+      - name: v0.7.0 proje paketini ac
+        run: unzip -o StereoGuide-Android-project-v0.7.0-burst-selection.zip
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
@@ -28,13 +28,14 @@ jobs:
         with:
           gradle-version: "8.10.2"
 
-      - name: APK oluştur
+      - name: APK olustur
         working-directory: StereoGuide
         run: gradle --no-daemon assembleDebug
 
-      - name: APK dosyasını yayımla
+      - name: APK dosyasini yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: StereoGuide-v0.6.0-APK
+          name: StereoGuide-v0.7.0-APK
           path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
