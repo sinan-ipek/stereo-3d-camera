@@ -18,6 +18,12 @@ jobs:
         run: |
           unzip -o StereoGuide-Android-project-v0.5.0-auto-align-fast.zip
 
+      - name: GuideOverlayView hatasini duzelt
+        run: |
+          GUIDE_FILE="$(find StereoGuide -name GuideOverlayView.kt -print -quit)"
+          test -n "$GUIDE_FILE"
+          sed -i '77s/\bcx\b/(width \/ 2f)/g' "$GUIDE_FILE"
+
       - name: Java ve Kotlin hedeflerini 17 yap
         run: |
           sed -i '/    kotlinOptions {/i\
