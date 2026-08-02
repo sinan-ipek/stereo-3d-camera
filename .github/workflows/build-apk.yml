@@ -14,24 +14,8 @@ jobs:
       - name: Depoyu indir
         uses: actions/checkout@v4
 
-      - name: Proje ZIP dosyasini ac
-        run: |
-          unzip -o StereoGuide-Android-project-v0.5.0-auto-align-fast.zip
-
-      - name: GuideOverlayView hatasini duzelt
-        run: |
-          GUIDE_FILE="$(find StereoGuide -name GuideOverlayView.kt -print -quit)"
-          test -n "$GUIDE_FILE"
-          sed -i '77s/\bcx\b/(width \/ 2f)/g' "$GUIDE_FILE"
-
-      - name: Java ve Kotlin hedeflerini 17 yap
-        run: |
-          sed -i '/    kotlinOptions {/i\
-              compileOptions {\
-                  sourceCompatibility = JavaVersion.VERSION_17\
-                  targetCompatibility = JavaVersion.VERSION_17\
-              }\
-          ' StereoGuide/app/build.gradle.kts
+      - name: v0.6.0 proje paketini ac
+        run: unzip -o StereoGuide-Android-project-v0.6.0-image-align-stop-icon.zip
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
@@ -46,11 +30,11 @@ jobs:
 
       - name: APK olustur
         working-directory: StereoGuide
-        run: gradle assembleDebug
+        run: gradle --no-daemon assembleDebug
 
       - name: APK dosyasini yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: StereoGuide-v0.5.0-APK
+          name: StereoGuide-v0.6.0-APK
           path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
