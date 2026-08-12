@@ -1,28 +1,22 @@
-name: StereoGuide v0.8 Macro Zoom Build
+name: StereoGuide APK Olustur
 
 on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - agent/stereoguide-macro-zoom
-    paths:
-      - .github/workflows/build-apk.yml
-
-permissions:
-  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Depoyu indir
         uses: actions/checkout@v4
 
-      - name: v0.7.0 paketini ac
-        run: unzip -o StereoGuide-Android-project-v0.7.0-burst-selection.zip
-
-      - name: Makro ve zoom yamasini uygula
-        run: python3 .github/scripts/patch_stereoguide_v080.py
+      - name: v0.8.0 proje paketini ac
+        run: unzip -o StereoGuide-Android-project-v0.8.0-macro-zoom.zip
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
@@ -39,24 +33,9 @@ jobs:
         working-directory: StereoGuide
         run: gradle --no-daemon assembleDebug
 
-      - name: Yeni proje ZIP paketini olustur
-        run: |
-          rm -f StereoGuide-Android-project-v0.8.0-macro-zoom.zip
-          zip -qr StereoGuide-Android-project-v0.8.0-macro-zoom.zip StereoGuide
-
-      - name: ZIP dosyasini dala kaydet
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add StereoGuide-Android-project-v0.8.0-macro-zoom.zip
-          git commit -m "add StereoGuide v0.8 macro and zoom" || exit 0
-          git push
-
-      - name: APK ve proje paketini yayinla
+      - name: APK dosyasini yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: StereoGuide-v0.8.0-macro-zoom
-          path: |
-            StereoGuide/app/build/outputs/apk/debug/app-debug.apk
-            StereoGuide-Android-project-v0.8.0-macro-zoom.zip
+          name: StereoGuide-v0.8.0-APK
+          path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
