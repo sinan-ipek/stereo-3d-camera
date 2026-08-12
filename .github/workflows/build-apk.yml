@@ -1,10 +1,11 @@
-name: StereoGuide APK Olustur
+name: StereoGuide Inspect and Build
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
+      - agent/stereoguide-macro-zoom
 
 jobs:
   build:
@@ -16,6 +17,13 @@ jobs:
 
       - name: v0.7.0 proje paketini ac
         run: unzip -o StereoGuide-Android-project-v0.7.0-burst-selection.zip
+
+      - name: Ilgili kaynaklari goster
+        run: |
+          echo '=== SOURCE FILES ==='
+          find StereoGuide -type f \( -name '*.kt' -o -name '*.java' -o -name '*.xml' -o -name '*.gradle' -o -name '*.kts' \) | sort
+          echo '=== CAMERA / DISTANCE MATCHES ==='
+          grep -RniE 'Yakın|Yakin|Orta|Uzak|distance|baseline|camera|CameraX|Camera2|zoom|lens|ImageCapture|Preview' StereoGuide/app/src StereoGuide/app/build.gradle* StereoGuide/build.gradle* 2>/dev/null || true
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
@@ -35,7 +43,6 @@ jobs:
       - name: APK dosyasini yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: StereoGuide-v0.7.0-APK
+          name: StereoGuide-inspect-APK
           path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
