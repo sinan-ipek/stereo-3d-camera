@@ -1,14 +1,13 @@
-name: StereoGuide Hiper Rename
+name: StereoGuide Premium APK
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - agent/stereoguide-macro-zoom
     paths:
       - .github/workflows/build-apk.yml
-
-permissions:
-  contents: write
+      - .github/scripts/apply_premium_ui.py
 
 jobs:
   build:
@@ -21,11 +20,8 @@ jobs:
       - name: v0.8.0 proje paketini ac
         run: unzip -o StereoGuide-Android-project-v0.8.0-macro-zoom.zip
 
-      - name: Makro adini Hiper yap
-        run: |
-          sed -i 's/<string name="macro_12cm">Makro 12 cm<\/string>/<string name="macro_12cm">Hiper<\/string>/' StereoGuide/app/src/main/res/values/strings.xml
-          sed -i 's/versionCode = 8/versionCode = 9/' StereoGuide/app/build.gradle.kts
-          sed -i 's/versionName = "0.8.0"/versionName = "0.8.1"/' StereoGuide/app/build.gradle.kts
+      - name: Premium arayuzu uygula
+        run: python3 .github/scripts/apply_premium_ui.py
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
@@ -42,24 +38,9 @@ jobs:
         working-directory: StereoGuide
         run: gradle --no-daemon assembleDebug
 
-      - name: v0.8.1 proje paketini olustur
-        run: |
-          rm -f StereoGuide-Android-project-v0.8.1-hiper.zip
-          zip -qr StereoGuide-Android-project-v0.8.1-hiper.zip StereoGuide
-
-      - name: Yeni proje paketini dala kaydet
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add StereoGuide-Android-project-v0.8.1-hiper.zip
-          git commit -m "add StereoGuide v0.8.1 Hiper label" || exit 0
-          git push
-
-      - name: APK ve proje paketini yayinla
+      - name: APK dosyasini yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: StereoGuide-v0.8.1-Hiper
-          path: |
-            StereoGuide/app/build/outputs/apk/debug/app-debug.apk
-            StereoGuide-Android-project-v0.8.1-hiper.zip
+          name: StereoGuide-v0.9.0-premium
+          path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
