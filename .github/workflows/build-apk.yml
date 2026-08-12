@@ -1,22 +1,251 @@
-name: StereoGuide Inspect XML
+name: StereoGuide v0.8 Macro Zoom Build
 
 on:
   push:
     branches:
       - agent/stereoguide-macro-zoom
+    paths:
+      - .github/workflows/build-apk.yml
+
+permissions:
+  contents: write
 
 jobs:
-  inspect:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Projeyi ac
+
+      - name: v0.7.0 paketini ac
         run: unzip -o StereoGuide-Android-project-v0.7.0-burst-selection.zip
-      - name: XML kaynaklarini yazdir
+
+      - name: Makro ve zoom degisikliklerini uygula
         run: |
-          echo '=== activity_main.xml ==='
-          cat StereoGuide/app/src/main/res/layout/activity_main.xml
-          echo '=== strings.xml ==='
-          cat StereoGuide/app/src/main/res/values/strings.xml
-          echo '=== app build.gradle.kts ==='
-          cat StereoGuide/app/build.gradle.kts
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path('StereoGuide')
+          main = root / 'app/src/main/java/com/stereoguide/app/MainActivity.kt'
+          layout = root / 'app/src/main/res/layout/activity_main.xml'
+          strings = root / 'app/src/main/res/values/strings.xml'
+          gradle = root / 'app/build.gradle.kts'
+
+          s = strings.read_text()
+          s = s.replace(
+              '    <string name="landscape_8cm">Uzak 8 cm</string>\n',
+              '    <string name="landscape_8cm">Uzak 8 cm</string>\n'
+              '    <string name="macro_12cm">Makro 12 cm</string>\n'
+              '    <string name="zoom_wide">0.6×</string>\n'
+              '    <string name="zoom_normal">1×</string>\n'
+          )
+          strings.write_text(s)
+
+          x = layout.read_text()
+          marker = '''        <com.google.android.material.button.MaterialButtonToggleGroup
+              android:id="@+id/distanceGroup"'''
+          zoom_group = '''        <com.google.android.material.button.MaterialButtonToggleGroup
+              android:id="@+id/zoomGroup"
+              android:layout_width="wrap_content"
+              android:layout_height="wrap_content"
+              android:layout_marginBottom="8dp"
+              app:singleSelection="true"
+              app:selectionRequired="true"
+              app:checkedButton="@id/zoomNormal">
+
+              <com.google.android.material.button.MaterialButton
+                  android:id="@+id/zoomWide"
+                  style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="@string/zoom_wide" />
+
+              <com.google.android.material.button.MaterialButton
+                  android:id="@+id/zoomNormal"
+                  style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="@string/zoom_normal" />
+          </com.google.android.material.button.MaterialButtonToggleGroup>
+
+'''
+          if zoom_group not in x:
+              x = x.replace(marker, zoom_group + marker)
+
+          x = x.replace(
+              '            android:id="@+id/distanceGroup"\n            android:layout_width="wrap_content"',
+              '            android:id="@+id/distanceGroup"\n            android:layout_width="match_parent"'
+          )
+
+          for button_id in ('close', 'portrait', 'landscape'):
+              old = f'''                android:id="@+id/{button_id}"
+                  style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"'''
+              new = f'''                android:id="@+id/{button_id}"
+                  style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:minWidth="0dp"
+                  android:textSize="12sp"'''
+              x = x.replace(old, new)
+
+          macro_button = '''            <com.google.android.material.button.MaterialButton
+                  android:id="@+id/macro"
+                  style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                  android:layout_width="0dp"
+                  android:layout_height="wrap_content"
+                  android:layout_weight="1"
+                  android:minWidth="0dp"
+                  android:textSize="12sp"
+                  android:text="@string/macro_12cm" />
+'''
+          distance_end = '        </com.google.android.material.button.MaterialButtonToggleGroup>\n\n        <LinearLayout'
+          if macro_button not in x:
+              x = x.replace(distance_end, macro_button + '        </com.google.android.material.button.MaterialButtonToggleGroup>\n\n        <LinearLayout', 1)
+          layout.write_text(x)
+
+          k = main.read_text()
+          k = k.replace(
+              'import androidx.camera.core.CameraSelector\n',
+              'import androidx.camera.core.Camera\nimport androidx.camera.core.CameraSelector\n'
+          )
+          k = k.replace(
+              '    private var imageCapture: ImageCapture? = null\n',
+              '    private var imageCapture: ImageCapture? = null\n'
+              '    private var camera: Camera? = null\n'
+              '    private var selectedZoomRatio = 1f\n'
+          )
+
+          old_distance = '''        binding.distanceGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+              if (!isChecked || firstBurst.isNotEmpty()) return@addOnButtonCheckedListener
+              targetCm = when (checkedId) {
+                  R.id.close -> 4
+                  R.id.landscape -> 8
+                  else -> 6
+              }
+              targetShiftPixels = when (checkedId) {
+                  R.id.close -> 10
+                  R.id.landscape -> 5
+                  else -> 7
+              }
+          }
+'''
+          new_distance = '''        binding.distanceGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+              if (!isChecked || firstBurst.isNotEmpty()) return@addOnButtonCheckedListener
+              targetCm = when (checkedId) {
+                  R.id.close -> 4
+                  R.id.landscape -> 8
+                  R.id.macro -> 12
+                  else -> 6
+              }
+              targetShiftPixels = when (checkedId) {
+                  R.id.close -> 10
+                  R.id.landscape -> 5
+                  R.id.macro -> 14
+                  else -> 7
+              }
+          }
+
+          binding.zoomGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+              if (!isChecked || firstBurst.isNotEmpty()) return@addOnButtonCheckedListener
+              selectedZoomRatio = if (checkedId == R.id.zoomWide) 0.6f else 1f
+              applySelectedZoom()
+          }
+'''
+          k = k.replace(old_distance, new_distance)
+
+          old_bind = '''            provider.bindToLifecycle(
+                  this,
+                  CameraSelector.DEFAULT_BACK_CAMERA,
+                  preview,
+                  imageCapture,
+                  analysis
+              )
+'''
+          new_bind = '''            camera = provider.bindToLifecycle(
+                  this,
+                  CameraSelector.DEFAULT_BACK_CAMERA,
+                  preview,
+                  imageCapture,
+                  analysis
+              )
+              applySelectedZoom()
+'''
+          k = k.replace(old_bind, new_bind)
+
+          apply_zoom = '''
+      private fun applySelectedZoom() {
+          val activeCamera = camera ?: return
+          val zoomState = activeCamera.cameraInfo.zoomState.value ?: return
+          val requested = selectedZoomRatio
+          val actual = requested.coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+          activeCamera.cameraControl.setZoomRatio(actual)
+          if (requested < zoomState.minZoomRatio) {
+              selectedZoomRatio = 1f
+              if (binding.zoomNormal.id != binding.zoomGroup.checkedButtonId) {
+                  binding.zoomNormal.isChecked = true
+              }
+              binding.zoomWide.isEnabled = false
+          } else {
+              binding.zoomWide.isEnabled = true
+          }
+      }
+'''
+          k = k.replace(
+              '    private fun capture() {\n',
+              apply_zoom + '\n    private fun capture() {\n'
+          )
+
+          k = k.replace(
+              '        binding.distanceGroup.isEnabled = false\n',
+              '        binding.distanceGroup.isEnabled = false\n        binding.zoomGroup.isEnabled = false\n'
+          )
+          k = k.replace(
+              '        binding.distanceGroup.isEnabled = true\n',
+              '        binding.distanceGroup.isEnabled = true\n        binding.zoomGroup.isEnabled = true\n'
+          )
+          main.write_text(k)
+
+          g = gradle.read_text()
+          g = g.replace('versionCode = 7', 'versionCode = 8')
+          g = g.replace('versionName = "0.7.0"', 'versionName = "0.8.0"')
+          gradle.write_text(g)
+          PY
+
+      - name: Java 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle kur
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: APK olustur
+        working-directory: StereoGuide
+        run: gradle --no-daemon assembleDebug
+
+      - name: Yeni proje ZIP paketini olustur
+        run: |
+          rm -f StereoGuide-Android-project-v0.8.0-macro-zoom.zip
+          zip -qr StereoGuide-Android-project-v0.8.0-macro-zoom.zip StereoGuide
+
+      - name: ZIP dosyasini dala kaydet
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add StereoGuide-Android-project-v0.8.0-macro-zoom.zip
+          git commit -m 'add StereoGuide v0.8 macro and zoom' || exit 0
+          git push
+
+      - name: APK ve proje paketini yayinla
+        uses: actions/upload-artifact@v4
+        with:
+          name: StereoGuide-v0.8.0-macro-zoom
+          path: |
+            StereoGuide/app/build/outputs/apk/debug/app-debug.apk
+            StereoGuide-Android-project-v0.8.0-macro-zoom.zip
+          if-no-files-found: error
