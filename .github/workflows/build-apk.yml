@@ -1,48 +1,29 @@
-name: StereoGuide Inspect and Build
+name: StereoGuide Inspect Sources
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - main
       - agent/stereoguide-macro-zoom
 
 jobs:
-  build:
+  inspect:
     runs-on: ubuntu-latest
-
     steps:
       - name: Depoyu indir
         uses: actions/checkout@v4
 
-      - name: v0.7.0 proje paketini ac
+      - name: Projeyi ac
         run: unzip -o StereoGuide-Android-project-v0.7.0-burst-selection.zip
 
-      - name: Ilgili kaynaklari goster
+      - name: Ilgili kaynaklari yazdir
         run: |
           echo '=== SOURCE FILES ==='
-          find StereoGuide -type f \( -name '*.kt' -o -name '*.java' -o -name '*.xml' -o -name '*.gradle' -o -name '*.kts' \) | sort
-          echo '=== CAMERA / DISTANCE MATCHES ==='
-          grep -RniE 'Yakın|Yakin|Orta|Uzak|distance|baseline|camera|CameraX|Camera2|zoom|lens|ImageCapture|Preview' StereoGuide/app/src StereoGuide/app/build.gradle* StereoGuide/build.gradle* 2>/dev/null || true
-
-      - name: Java 17 kur
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Gradle kur
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.10.2"
-
-      - name: APK olustur
-        working-directory: StereoGuide
-        run: gradle --no-daemon assembleDebug
-
-      - name: APK dosyasini yayinla
-        uses: actions/upload-artifact@v4
-        with:
-          name: StereoGuide-inspect-APK
-          path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          find StereoGuide/app/src -type f \( -name '*.kt' -o -name '*.java' -o -name '*.xml' \) | sort
+          echo '=== MATCHES ==='
+          grep -RniE 'Yakın|Yakin|Orta|Uzak|distance|baseline|camera|CameraX|Camera2|zoom|lens|ImageCapture|Preview|capture|photo' StereoGuide/app/src 2>/dev/null || true
+          echo '=== KOTLIN/JAVA CONTENTS ==='
+          find StereoGuide/app/src -type f \( -name '*.kt' -o -name '*.java' \) -print0 | while IFS= read -r -d '' f; do
+            echo "===== $f ====="
+            cat "$f"
+          done
