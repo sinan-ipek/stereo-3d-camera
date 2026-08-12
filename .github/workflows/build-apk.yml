@@ -1,7 +1,6 @@
-name: StereoGuide Inspect Sources
+name: StereoGuide Inspect XML
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - agent/stereoguide-macro-zoom
@@ -10,20 +9,14 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Depoyu indir
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Projeyi ac
         run: unzip -o StereoGuide-Android-project-v0.7.0-burst-selection.zip
-
-      - name: Ilgili kaynaklari yazdir
+      - name: XML kaynaklarini yazdir
         run: |
-          echo '=== SOURCE FILES ==='
-          find StereoGuide/app/src -type f \( -name '*.kt' -o -name '*.java' -o -name '*.xml' \) | sort
-          echo '=== MATCHES ==='
-          grep -RniE 'Yakın|Yakin|Orta|Uzak|distance|baseline|camera|CameraX|Camera2|zoom|lens|ImageCapture|Preview|capture|photo' StereoGuide/app/src 2>/dev/null || true
-          echo '=== KOTLIN/JAVA CONTENTS ==='
-          find StereoGuide/app/src -type f \( -name '*.kt' -o -name '*.java' \) -print0 | while IFS= read -r -d '' f; do
-            echo "===== $f ====="
-            cat "$f"
-          done
+          echo '=== activity_main.xml ==='
+          cat StereoGuide/app/src/main/res/layout/activity_main.xml
+          echo '=== strings.xml ==='
+          cat StereoGuide/app/src/main/res/values/strings.xml
+          echo '=== app build.gradle.kts ==='
+          cat StereoGuide/app/build.gradle.kts
