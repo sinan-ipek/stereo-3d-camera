@@ -32,7 +32,6 @@ if idx != -1:
     if start == -1 or end == -1:
         raise RuntimeError('Reset düğmesi XML bloğu bulunamadı.')
     layout = layout[:start] + layout[end + 2:]
-
 if reset_marker in layout:
     raise RuntimeError('Reset düğmesi arayüzden tamamen kaldırılamadı.')
 
@@ -49,20 +48,57 @@ if 'android:id="@+id/distanceGroup"\n            android:clipChildren="false"' n
     )
 layout_path.write_text(layout, encoding='utf-8')
 
-# 3) Reset düğmesinin click-handler / doğrudan view kodunu kaldır.
+# 3) Yalnızca reset DÜĞMESİNİN listener bloğunu kaldır.
+# Uygulamanın kendi otomatik reset() fonksiyonuna ve reset() çağrılarına dokunma.
 main_path = project / 'app/src/main/java/com/stereoguide/app/MainActivity.kt'
 main = main_path.read_text(encoding='utf-8')
-main = re.sub(
-    r'(?ms)^\s*binding\.reset\.setOnClickListener\s*\{.*?^\s*\}\s*\n',
-    '',
-    main,
-)
-main = re.sub(r'(?m)^.*binding\.reset.*\n?', '', main)
+needle = 'binding.reset.setOnClickListener'
+pos = main.find(needle)
+if pos != -1:
+    line_start = main.rfind('\n', 0, pos) + 1
+    brace_start = main.find('{', pos)
+    if brace_start == -1:
+        raise RuntimeError('Reset listener başlangıç parantezi bulunamadı.')
+    depth = 0
+    i = brace_start
+    in_string = False
+    escape = False
+    while i < len(main):
+        ch = main[i]
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == '\\':
+                escape = True
+            elif ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    block_end = i + 1
+                    # Satır sonunu da al.
+                    if block_end < len(main) and main[block_end] == '\r':
+                        block_end += 1
+                    if block_end < len(main) and main[block_end] == '\n':
+                        block_end += 1
+                    main = main[:line_start] + main[block_end:]
+                    break
+        i += 1
+    else:
+        raise RuntimeError('Reset listener kapanış parantezi bulunamadı.')
+
+# Başka button-view referansı kalmışsa satır bazında kaldır; reset() fonksiyonuna dokunma.
+main = re.sub(r'(?m)^.*binding\.reset(?:\.|\b).*$\n?', '', main)
 if 'binding.reset' in main:
     raise RuntimeError('MainActivity içinde reset düğmesi referansı kaldı.')
 main_path.write_text(main, encoding='utf-8')
 
-# 4) Reset kaynaklarını ancak UI ve kod referansları kaldırıldıktan sonra sil.
+# 4) Reset düğmesine özel kaynakları kaldır.
 strings = strings_path.read_text(encoding='utf-8')
 strings = re.sub(r'\s*<string\s+name="reset">.*?</string>', '', strings, flags=re.S)
 strings_path.write_text(strings, encoding='utf-8')
@@ -76,25 +112,13 @@ animator_dir.mkdir(parents=True, exist_ok=True)
 (animator_dir / 'button_elevation.xml').write_text(r'''<?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
-        <objectAnimator
-            android:duration="90"
-            android:propertyName="translationZ"
-            android:valueTo="1dp"
-            android:valueType="floatType" />
+        <objectAnimator android:duration="90" android:propertyName="translationZ" android:valueTo="1dp" android:valueType="floatType" />
     </item>
     <item android:state_checked="true">
-        <objectAnimator
-            android:duration="140"
-            android:propertyName="translationZ"
-            android:valueTo="6dp"
-            android:valueType="floatType" />
+        <objectAnimator android:duration="140" android:propertyName="translationZ" android:valueTo="6dp" android:valueType="floatType" />
     </item>
     <item>
-        <objectAnimator
-            android:duration="140"
-            android:propertyName="translationZ"
-            android:valueTo="0dp"
-            android:valueType="floatType" />
+        <objectAnimator android:duration="140" android:propertyName="translationZ" android:valueTo="0dp" android:valueType="floatType" />
     </item>
 </selector>
 ''', encoding='utf-8')
@@ -119,4 +143,4 @@ gradle = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 10', gradle)
 gradle = re.sub(r'versionName\s*=\s*"[^"]+"', 'versionName = "0.9.1"', gradle)
 gradle_path.write_text(gradle, encoding='utf-8')
 
-print('v0.9.1 hazır: Yakın/Portre/Uzak/Hiper, reset tamamen silindi, hafif 3D düğmeler eklendi.')
+print('v0.9.1 hazır: Yakın/Portre/Uzak/Hiper, reset düğmesi tamamen silindi, 3D düğmeler eklendi.')
