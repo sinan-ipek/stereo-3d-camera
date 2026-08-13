@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/build-apk.yml
       - .github/scripts/apply_premium_ui.py
+      - .github/scripts/remove_reset_3d.py
 
 jobs:
   build:
@@ -22,6 +23,9 @@ jobs:
 
       - name: Premium arayuzu uygula
         run: python3 .github/scripts/apply_premium_ui.py
+
+      - name: Sadelestir ve 3D dugmeleri uygula
+        run: python3 .github/scripts/remove_reset_3d.py
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
@@ -41,6 +45,6 @@ jobs:
       - name: APK dosyasini yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: StereoGuide-v0.9.0-premium
+          name: StereoGuide-v0.9.1-clean-3D
           path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
