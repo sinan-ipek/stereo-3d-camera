@@ -4,26 +4,33 @@ import re
 project = Path('StereoGuide')
 res = project / 'app/src/main/res'
 
-# 1) Mod adlarını sadeleştir: ekranda cm gösterme.
-strings_path = res / 'values/strings.xml'
-strings = strings_path.read_text(encoding='utf-8')
-replacements = {
-    'close_4cm': 'Yakın',
-    'portrait_6cm': 'Portre',
-    'landscape_8cm': 'Uzak',
-    'macro_12cm': 'Hiper',
-}
-for key, value in replacements.items():
-    strings = re.sub(
-        rf'<string\s+name="{re.escape(key)}">.*?</string>',
-        f'<string name="{key}">{value}</string>',
-        strings,
-        flags=re.S,
-    )
-
-# 2) Sıfırla / yeniden dene düğmesini arayüzden tamamen kaldır.
+# 1) Görünen etiketleri doğrudan layout'a yaz.
+# Böylece eski cm metinleri veya kaynak önbelleği hiçbir şekilde ekrana gelemez.
 layout_path = res / 'layout/activity_main.xml'
 layout = layout_path.read_text(encoding='utf-8')
+
+label_replacements = {
+    'android:text="@string/close_4cm"': 'android:text="Yakın"',
+    'android:text="@string/portrait_6cm"': 'android:text="Portre"',
+    'android:text="@string/landscape_8cm"': 'android:text="Uzak"',
+    'android:text="@string/macro_12cm"': 'android:text="Hiper"',
+    'android:text="@string/zoom_wide"': 'android:text="0.6×"',
+    'android:text="@string/zoom_normal"': 'android:text="1×"',
+}
+for old, new in label_replacements.items():
+    layout = layout.replace(old, new)
+
+# Zoom düğmelerine biraz daha alan ver; 0.6× hiçbir zaman kesilmesin.
+layout = layout.replace('android:layout_width="64dp"\n            android:layout_height="42dp"',
+                        'android:layout_width="76dp"\n            android:layout_height="42dp"')
+
+# Mod düğmelerini birbirinden hafif ayır; kabartı/gölge görünür olsun.
+for view_id in ('close', 'portrait', 'landscape', 'macro'):
+    marker = f'android:id="@+id/{view_id}"'
+    if marker in layout and f'{marker}\n                android:layout_marginHorizontal="2dp"' not in layout:
+        layout = layout.replace(marker, marker + '\n                android:layout_marginHorizontal="2dp"')
+
+# 2) Sıfırla / yeniden dene düğmesini arayüzden tamamen kaldır.
 reset_marker = 'android:id="@+id/reset"'
 idx = layout.find(reset_marker)
 if idx != -1:
@@ -35,7 +42,7 @@ if idx != -1:
 if reset_marker in layout:
     raise RuntimeError('Reset düğmesi arayüzden tamamen kaldırılamadı.')
 
-# Toggle gruplarında yükseltilmiş düğme gölgelerinin kesilmesini önle.
+# Toggle gruplarında gölge/yükselme kesilmesin.
 if 'android:id="@+id/zoomGroup"\n        android:clipChildren="false"' not in layout:
     layout = layout.replace(
         'android:id="@+id/zoomGroup"',
@@ -48,8 +55,8 @@ if 'android:id="@+id/distanceGroup"\n            android:clipChildren="false"' n
     )
 layout_path.write_text(layout, encoding='utf-8')
 
-# 3) Yalnızca reset DÜĞMESİNİN listener bloğunu kaldır.
-# Uygulamanın kendi otomatik reset() fonksiyonuna ve reset() çağrılarına dokunma.
+# 3) Yalnız reset DÜĞMESİNİN listener bloğunu kaldır.
+# Uygulamanın çekim sonrası kendi kullandığı reset() fonksiyonuna dokunma.
 main_path = project / 'app/src/main/java/com/stereoguide/app/MainActivity.kt'
 main = main_path.read_text(encoding='utf-8')
 needle = 'binding.reset.setOnClickListener'
@@ -81,7 +88,6 @@ if pos != -1:
                 depth -= 1
                 if depth == 0:
                     block_end = i + 1
-                    # Satır sonunu da al.
                     if block_end < len(main) and main[block_end] == '\r':
                         block_end += 1
                     if block_end < len(main) and main[block_end] == '\n':
@@ -92,13 +98,13 @@ if pos != -1:
     else:
         raise RuntimeError('Reset listener kapanış parantezi bulunamadı.')
 
-# Başka button-view referansı kalmışsa satır bazında kaldır; reset() fonksiyonuna dokunma.
 main = re.sub(r'(?m)^.*binding\.reset(?:\.|\b).*$\n?', '', main)
 if 'binding.reset' in main:
     raise RuntimeError('MainActivity içinde reset düğmesi referansı kaldı.')
 main_path.write_text(main, encoding='utf-8')
 
 # 4) Reset düğmesine özel kaynakları kaldır.
+strings_path = res / 'values/strings.xml'
 strings = strings_path.read_text(encoding='utf-8')
 strings = re.sub(r'\s*<string\s+name="reset">.*?</string>', '', strings, flags=re.S)
 strings_path.write_text(strings, encoding='utf-8')
@@ -106,41 +112,50 @@ restart_icon = res / 'drawable/ic_restart.xml'
 if restart_icon.exists():
     restart_icon.unlink()
 
-# 5) Hafif 3D/kabartma: taban elevation + seçilince yükselme.
+# 5) Daha görünür ama abartısız 3D/kabartma.
 animator_dir = res / 'animator'
 animator_dir.mkdir(parents=True, exist_ok=True)
 (animator_dir / 'button_elevation.xml').write_text(r'''<?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
-        <objectAnimator android:duration="90" android:propertyName="translationZ" android:valueTo="1dp" android:valueType="floatType" />
+        <objectAnimator android:duration="70" android:propertyName="translationZ" android:valueTo="0dp" android:valueType="floatType" />
     </item>
     <item android:state_checked="true">
-        <objectAnimator android:duration="140" android:propertyName="translationZ" android:valueTo="6dp" android:valueType="floatType" />
+        <objectAnimator android:duration="130" android:propertyName="translationZ" android:valueTo="10dp" android:valueType="floatType" />
     </item>
     <item>
-        <objectAnimator android:duration="140" android:propertyName="translationZ" android:valueTo="0dp" android:valueType="floatType" />
+        <objectAnimator android:duration="130" android:propertyName="translationZ" android:valueTo="2dp" android:valueType="floatType" />
     </item>
 </selector>
 ''', encoding='utf-8')
 
 themes_path = res / 'values/themes.xml'
 themes = themes_path.read_text(encoding='utf-8')
-if '@animator/button_elevation' not in themes:
-    themes = themes.replace(
-        '<item name="cornerRadius">21dp</item>',
-        '<item name="cornerRadius">21dp</item>\n        <item name="android:elevation">3dp</item>\n        <item name="android:stateListAnimator">@animator/button_elevation</item>',
-    )
-    themes = themes.replace(
-        '<item name="cornerRadius">14dp</item>',
-        '<item name="cornerRadius">14dp</item>\n        <item name="android:elevation">3dp</item>\n        <item name="android:stateListAnimator">@animator/button_elevation</item>',
-    )
+# Önce eski eklemeler varsa normalize et.
+themes = re.sub(r'\n\s*<item name="android:elevation">\d+dp</item>', '', themes)
+themes = re.sub(r'\n\s*<item name="android:stateListAnimator">@animator/button_elevation</item>', '', themes)
+themes = themes.replace('<item name="strokeWidth">1dp</item>', '<item name="strokeWidth">2dp</item>')
+themes = themes.replace(
+    '<item name="cornerRadius">21dp</item>',
+    '<item name="cornerRadius">21dp</item>\n        <item name="android:elevation">5dp</item>\n        <item name="android:stateListAnimator">@animator/button_elevation</item>',
+)
+themes = themes.replace(
+    '<item name="cornerRadius">14dp</item>',
+    '<item name="cornerRadius">14dp</item>\n        <item name="android:elevation">5dp</item>\n        <item name="android:stateListAnimator">@animator/button_elevation</item>',
+)
 themes_path.write_text(themes, encoding='utf-8')
 
-# Sürümü artır.
+# 6) Sürümü artır.
 gradle_path = project / 'app/build.gradle.kts'
 gradle = gradle_path.read_text(encoding='utf-8')
-gradle = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 10', gradle)
-gradle = re.sub(r'versionName\s*=\s*"[^"]+"', 'versionName = "0.9.1"', gradle)
+gradle = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 11', gradle)
+gradle = re.sub(r'versionName\s*=\s*"[^"]+"', 'versionName = "0.9.2"', gradle)
 gradle_path.write_text(gradle, encoding='utf-8')
 
-print('v0.9.1 hazır: Yakın/Portre/Uzak/Hiper, reset düğmesi tamamen silindi, 3D düğmeler eklendi.')
+# Son kontrol: eski görünen etiketler layout'ta bulunmamalı.
+final_layout = layout_path.read_text(encoding='utf-8')
+for bad in ('close_4cm', 'portrait_6cm', 'landscape_8cm', 'macro_12cm', '@string/zoom_wide', '@string/zoom_normal', '@+id/reset'):
+    if bad in final_layout:
+        raise RuntimeError(f'Eski UI referansı kaldı: {bad}')
+
+print('v0.9.2 hazır: etiketler kesin olarak sade, reset yok, 3D düğmeler güçlendirildi.')
