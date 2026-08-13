@@ -1,10 +1,14 @@
-name: StereoGuide APK Olustur
+name: StereoGuide Premium APK
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - agent/stereoguide-macro-zoom
+    paths:
+      - .github/workflows/build-apk.yml
+      - .github/scripts/apply_premium_ui.py
+      - .github/scripts/remove_reset_3d.py
 
 jobs:
   build:
@@ -14,8 +18,14 @@ jobs:
       - name: Depoyu indir
         uses: actions/checkout@v4
 
-      - name: v0.7.0 proje paketini ac
-        run: unzip -o StereoGuide-Android-project-v0.7.0-burst-selection.zip
+      - name: v0.8.0 proje paketini ac
+        run: unzip -o StereoGuide-Android-project-v0.8.0-macro-zoom.zip
+
+      - name: Premium arayuzu uygula
+        run: python3 .github/scripts/apply_premium_ui.py
+
+      - name: Sadelestir ve 3D dugmeleri uygula
+        run: python3 .github/scripts/remove_reset_3d.py
 
       - name: Java 17 kur
         uses: actions/setup-java@v4
@@ -35,7 +45,6 @@ jobs:
       - name: APK dosyasini yayinla
         uses: actions/upload-artifact@v4
         with:
-          name: StereoGuide-v0.7.0-APK
+          name: StereoGuide-v0.9.1-clean-3D
           path: StereoGuide/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
