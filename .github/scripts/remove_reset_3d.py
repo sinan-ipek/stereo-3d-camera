@@ -20,46 +20,57 @@ for key, value in replacements.items():
         strings,
         flags=re.S,
     )
-# Artık kullanılmayan reset metnini de kaldır.
-strings = re.sub(r'\s*<string\s+name="reset">.*?</string>', '', strings, flags=re.S)
-strings_path.write_text(strings, encoding='utf-8')
 
 # 2) Sıfırla / yeniden dene düğmesini arayüzden tamamen kaldır.
 layout_path = res / 'layout/activity_main.xml'
 layout = layout_path.read_text(encoding='utf-8')
-layout = re.sub(
-    r'\n\s*<com\.google\.android\.material\.button\.MaterialButton\s+\n\s*android:id="@\+id/reset".*?/>',
-    '',
-    layout,
-    flags=re.S,
-)
+reset_marker = 'android:id="@+id/reset"'
+idx = layout.find(reset_marker)
+if idx != -1:
+    start = layout.rfind('<com.google.android.material.button.MaterialButton', 0, idx)
+    end = layout.find('/>', idx)
+    if start == -1 or end == -1:
+        raise RuntimeError('Reset düğmesi XML bloğu bulunamadı.')
+    layout = layout[:start] + layout[end + 2:]
+
+if reset_marker in layout:
+    raise RuntimeError('Reset düğmesi arayüzden tamamen kaldırılamadı.')
 
 # Toggle gruplarında yükseltilmiş düğme gölgelerinin kesilmesini önle.
-layout = layout.replace(
-    'android:id="@+id/zoomGroup"',
-    'android:id="@+id/zoomGroup"\n        android:clipChildren="false"\n        android:clipToPadding="false"',
-)
-layout = layout.replace(
-    'android:id="@+id/distanceGroup"',
-    'android:id="@+id/distanceGroup"\n            android:clipChildren="false"\n            android:clipToPadding="false"',
-)
+if 'android:id="@+id/zoomGroup"\n        android:clipChildren="false"' not in layout:
+    layout = layout.replace(
+        'android:id="@+id/zoomGroup"',
+        'android:id="@+id/zoomGroup"\n        android:clipChildren="false"\n        android:clipToPadding="false"',
+    )
+if 'android:id="@+id/distanceGroup"\n            android:clipChildren="false"' not in layout:
+    layout = layout.replace(
+        'android:id="@+id/distanceGroup"',
+        'android:id="@+id/distanceGroup"\n            android:clipChildren="false"\n            android:clipToPadding="false"',
+    )
 layout_path.write_text(layout, encoding='utf-8')
 
-# 3) Reset düğmesinin click-handler kodunu kaldır.
+# 3) Reset düğmesinin click-handler / doğrudan view kodunu kaldır.
 main_path = project / 'app/src/main/java/com/stereoguide/app/MainActivity.kt'
 main = main_path.read_text(encoding='utf-8')
-
-# Yaygın çok satırlı listener biçimi.
 main = re.sub(
     r'(?ms)^\s*binding\.reset\.setOnClickListener\s*\{.*?^\s*\}\s*\n',
     '',
     main,
 )
-# Tek satırlı listener veya kalan doğrudan reset-view referansları.
 main = re.sub(r'(?m)^.*binding\.reset.*\n?', '', main)
+if 'binding.reset' in main:
+    raise RuntimeError('MainActivity içinde reset düğmesi referansı kaldı.')
 main_path.write_text(main, encoding='utf-8')
 
-# 4) Hafif 3D/kabartma: taban elevation + seçilince yükselme.
+# 4) Reset kaynaklarını ancak UI ve kod referansları kaldırıldıktan sonra sil.
+strings = strings_path.read_text(encoding='utf-8')
+strings = re.sub(r'\s*<string\s+name="reset">.*?</string>', '', strings, flags=re.S)
+strings_path.write_text(strings, encoding='utf-8')
+restart_icon = res / 'drawable/ic_restart.xml'
+if restart_icon.exists():
+    restart_icon.unlink()
+
+# 5) Hafif 3D/kabartma: taban elevation + seçilince yükselme.
 animator_dir = res / 'animator'
 animator_dir.mkdir(parents=True, exist_ok=True)
 (animator_dir / 'button_elevation.xml').write_text(r'''<?xml version="1.0" encoding="utf-8"?>
@@ -90,8 +101,6 @@ animator_dir.mkdir(parents=True, exist_ok=True)
 
 themes_path = res / 'values/themes.xml'
 themes = themes_path.read_text(encoding='utf-8')
-
-# Her iki düğme stiline de gölge ve durum animasyonu ekle; tekrar çalıştırılırsa çoğaltma.
 if '@animator/button_elevation' not in themes:
     themes = themes.replace(
         '<item name="cornerRadius">21dp</item>',
@@ -103,11 +112,6 @@ if '@animator/button_elevation' not in themes:
     )
 themes_path.write_text(themes, encoding='utf-8')
 
-# Reset ikonu artık yok.
-restart_icon = res / 'drawable/ic_restart.xml'
-if restart_icon.exists():
-    restart_icon.unlink()
-
 # Sürümü artır.
 gradle_path = project / 'app/build.gradle.kts'
 gradle = gradle_path.read_text(encoding='utf-8')
@@ -115,4 +119,4 @@ gradle = re.sub(r'versionCode\s*=\s*\d+', 'versionCode = 10', gradle)
 gradle = re.sub(r'versionName\s*=\s*"[^"]+"', 'versionName = "0.9.1"', gradle)
 gradle_path.write_text(gradle, encoding='utf-8')
 
-print('v0.9.1: cm etiketleri kaldırıldı, reset kontrolü/kodu silindi, hafif 3D düğme efekti eklendi.')
+print('v0.9.1 hazır: Yakın/Portre/Uzak/Hiper, reset tamamen silindi, hafif 3D düğmeler eklendi.')
